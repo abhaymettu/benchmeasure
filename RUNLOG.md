@@ -58,4 +58,4 @@ $ git clone https://github.com/abhaymettu/benchmeasure clone && cd clone && uv r
 15 passed in 27.01s
 ```
 
-Next: apply the blind README judge's edits; nothing else is open.
+- Blind README judge (staff-engineer persona) scored 6 to 8 of 10; applied its five edits (hero leads with the winner's-curse result, G defined first, circularity moved to Limits, consistent coverage numbers, figure label fix).

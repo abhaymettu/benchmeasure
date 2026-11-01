@@ -231,7 +231,7 @@ def figures(curve, cov, X):
     ax.invert_xaxis()
     ax.set_ylim(-0.02, 1.08)
     ax.axhline(0.8, color=grid, lw=1, zorder=0)
-    ax.text(ks[0], 0.81, "0.8", color=muted, fontsize=8, va="bottom")
+    ax.text(ks[-1], 0.81, "0.8", color=muted, fontsize=8, va="bottom", ha="right")
     ax.set_ylabel("G coefficient of the ranking")
     ax.grid(axis="y", color=grid, lw=0.6)
     for c in curve:

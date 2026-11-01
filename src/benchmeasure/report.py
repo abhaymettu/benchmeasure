@@ -147,7 +147,7 @@ def render(res: dict, name: str = "results") -> str:
         lines.append(f"   top {t['k']:<3d}       G = {t['g']:.3f}   model SD {_pct(t['sd_model'])}"
                      f"   tasks for G = 0.9: {need}")
     lines.append("   (top k chosen on half the tasks and scored on the other half, 50 splits;"
-                 " slightly optimistic, the naive estimate is far too pessimistic)")
+                 " slightly optimistic, while the same-task estimate is biased low)")
     if "pairs" in res:
         p = res["pairs"]
         lines += ["", f"   leaderboard neighbours in the top {p['k']}: {p['adjacent_separable']} of "
