@@ -35,7 +35,7 @@ Every leaderboard comparison carries three silent assumptions. The first is that
 
 This paper treats an evaluation as an instrument with three parts: a set of tasks, a scorer that turns a model's output into a grade, and repeated runs. Each part can fail as a measurement, and we measure each failure on public data. It unifies three open repositories into one programme and one tool:
 \begin{itemize}
-\item \textbf{Reliability and the validity ceiling} on SWE-bench \citep{jimenez2024swebench} Verified, a human-curated subset of 500 tasks \citep{yang2025swesmith},, with variance components estimated from 173 public submissions and coverage estimated from SWE-bench Multilingual \citep{yang2025swesmith} (repository \texttt{agent-validity-ceiling}, extended here).
+\item \textbf{Reliability and the validity ceiling} on SWE-bench \citep{jimenez2024swebench} Verified, a human-curated subset of 500 tasks \citep{yang2025swesmith}, with variance components estimated from 173 public submissions and coverage estimated from SWE-bench Multilingual \citep{yang2025swesmith} (repository \texttt{agent-validity-ceiling}, extended here).
 \item \textbf{Invariance}: classical DIF on 395 Open LLM Leaderboard models from the tinyBenchmarks release \citep{polo2024tinybenchmarks}, and the same checks on SWE-bench (repository \texttt{benchdif}).
 \item \textbf{The scorer}: an LLM judge calibrated against the human-to-human ceiling on MT-Bench \citep{zheng2023judging} (repository \texttt{judge-reliability}).
 \end{itemize}
