@@ -1,0 +1,15 @@
+submission,date,name,reported_resolved,model_org,os_model,agent,reasoning_effort,mini_swe_agent,model
+20260213_mini-v2.0.0a0_claude-4-5-haiku,20260213,Claude 4.5 Haiku,64.7,Anthropic,False,mini-SWE-agent,,True,claude-haiku-4-5-20251001
+20260213_mini-v2.0.0a0_claude-4-5-opus,20260213,Claude 4.5 Opus,70.7,Anthropic,False,mini-SWE-agent,,True,claude-opus-4-5-20251101
+20260213_mini-v2.0.0a0_claude-4-5-sonnet,20260213,Claude 4.5 Sonnet,67.0,Anthropic,False,mini-SWE-agent,,True,claude-sonnet-4-5-20250929
+20260213_mini-v2.0.0a0_claude-4-6-opus,20260213,Claude 4.6 Opus,72.0,Anthropic,False,mini-SWE-agent,,True,claude-opus-4-6
+20260213_mini-v2.0.0a0_deepseek-3-2,20260213,DeepSeek V3.2,59.0,DeepSeek,True,mini-SWE-agent,,True,deepseek-v3.2
+20260213_mini-v2.0.0a0_gemini-3-flash,20260213,Gemini 3 Flash,72.7,Google DeepMind,False,mini-SWE-agent,,True,gemini-3-flash
+20260213_mini-v2.0.0a0_gemini-3-pro,20260213,Gemini 3 Pro,68.7,Google DeepMind,False,mini-SWE-agent,,True,gemini-3-pro
+20260213_mini-v2.0.0a0_glm-5,20260213,GLM 5,69.7,Z.ai,True,mini-SWE-agent,,True,glm-5
+20260213_mini-v2.0.0a0_gpt-5-2-high,20260213,GPT 5.2 (high),66.7,OpenAI,False,mini-SWE-agent,high,True,gpt-5.2-2025-12-11
+20260213_mini-v2.0.0a0_gpt-5-mini,20260213,GPT 5 mini,39.7,OpenAI,False,mini-SWE-agent,,True,gpt-5-mini-2025-08-07
+20260213_mini-v2.0.0a0_kimi-k2-5,20260213,Kimi K2.5,67.3,Moonshot AI,True,mini-SWE-agent,,True,kimi-k2.5
+20260216_mini-v2.0.0a0_minimax-2-5,20260216,MiniMax M2.5,68.3,Minimax,True,mini-SWE-agent,,True,minimax-2.5
+20260220_mini-v2.0.0_gpt-5-2-codex,20260220,GPT 5.2 Codex,66.3,OpenAI,False,mini-SWE-agent,,True,gpt-5-2-codex
+20260902_mini-v2.4.6_gemini-3-5-flash,20260902,Gemini 3.5 Flash,67.0,Google DeepMind,False,mini-SWE-agent,medium,True,gemini-3-5-flash

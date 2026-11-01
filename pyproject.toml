@@ -1,0 +1,38 @@
+[project]
+name = "benchmeasure"
+version = "0.1.0"
+description = "Reliability, invariance and validity ceilings for AI benchmark results"
+readme = "README.md"
+authors = [{ name = "Abhay Mettu" }]
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "benchdif @ git+https://github.com/abhaymettu/benchdif",
+]
+keywords = ["psychometrics", "generalizability-theory", "reliability", "DIF",
+    "measurement-invariance", "LLM-evaluation", "benchmark", "agents", "SWE-bench"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.scripts]
+benchmeasure = "benchmeasure.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/abhaymettu/benchmeasure"
+
+[dependency-groups]
+dev = ["pytest>=8", "pyyaml>=6", "matplotlib>=3.8", "statsmodels>=0.14"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
