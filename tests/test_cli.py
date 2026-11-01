@@ -47,3 +47,26 @@ def test_console_script_installed():
     out = subprocess.run([sys.executable, "-m", "benchmeasure.cli", "--help"],
                          capture_output=True, text=True)
     assert out.returncode == 0 and "report" in out.stdout
+
+
+def _write(path, A):
+    pd.DataFrame(A, index=[f"m{i}" for i in range(len(A))]).rename_axis("model").to_csv(path)
+    return str(path)
+
+
+def test_degenerate_inputs_are_reported_not_printed_as_nan(tmp_path, capsys):
+    import pytest
+    with pytest.raises(SystemExit, match="same score on every task"):
+        main(["report", _write(tmp_path / "const.csv", np.ones((6, 20), int))])
+    with pytest.raises(SystemExit, match="No such file"):
+        main(["report", str(tmp_path / "missing.csv")])
+    noise = _write(tmp_path / "noise.csv", np.random.default_rng(1).integers(0, 2, (8, 40)))
+    assert main(["report", noise]) == 0
+    out = capsys.readouterr().out
+    assert "nan" not in out and "not reliable" in out
+    assert main(["report", noise, "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["reliability"]["all"]["tasks_for_g90"] is None
+    groups = tmp_path / "groups.csv"
+    pd.DataFrame({"model": [f"m{i}" for i in range(8)], "group": [1] + [0] * 7}).to_csv(groups, index=False)
+    with pytest.raises(SystemExit, match="at least 2 models"):
+        main(["report", noise, "--groups", str(groups)])

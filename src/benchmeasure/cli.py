@@ -60,12 +60,15 @@ def main(argv=None):
                           " criterion = SWE-bench Multilingual, same scaffold)"))
         return 0
 
-    X = load_matrix(args.results)
-    group = None
-    if args.groups:
-        group, focal = _groups(args.groups, args.group_col, X.index)
-    crit = load_matrix(args.criterion) if args.criterion else None
-    res = report(X, group=group, criterion=crit, top=args.top)
+    try:
+        X = load_matrix(args.results)
+        group = None
+        if args.groups:
+            group, focal = _groups(args.groups, args.group_col, X.index)
+        crit = load_matrix(args.criterion) if args.criterion else None
+        res = report(X, group=group, criterion=crit, top=args.top)
+    except (OSError, ValueError) as e:
+        raise SystemExit(f"benchmeasure: {e}")
     if args.json:
         res.get("pairs", {}).pop("table", None)
         print(json.dumps(res, indent=2, default=lambda o: o.item() if isinstance(o, np.generic) else str(o)))

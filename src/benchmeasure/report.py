@@ -41,6 +41,8 @@ def load_matrix(path) -> pd.DataFrame:
         X = X.loc[:, ~missing]
     if X.shape[0] < 3 or X.shape[1] < 2:
         raise ValueError(f"need at least 3 models and 2 complete tasks, got {X.shape}")
+    if (X == X.iloc[0]).all(axis=None):
+        raise ValueError("every model has the same score on every task; there is nothing to measure")
     X.attrs["dropped_tasks"] = int(missing.sum())
     return X
 
@@ -116,6 +118,11 @@ def report(X: pd.DataFrame, group=None, criterion: pd.DataFrame = None, top=(10,
                         "table": ap}
     if group is not None:
         grp = np.asarray(group).astype(bool)
+        labels = np.arange(len(grp)) if clusters is None else np.asarray(clusters)
+        sizes = [len(np.unique(labels[grp])), len(np.unique(labels[~grp]))]
+        if min(sizes) < 2:
+            raise ValueError(f"each group needs at least 2 models (or base models) to split in half;"
+                             f" group 1 has {sizes[0]}, group 0 has {sizes[1]}")
         kk = max(5, min(50, X.shape[1] // 10))
         sw = heldout_subset_swing(A, grp, kk, clusters=clusters)
         out["invariance"] = {**excess_gap_variance(A, grp, n_strata=5),
@@ -142,6 +149,9 @@ def render(res: dict, name: str = "results") -> str:
     lines += ["1. Reliability (generalizability theory, models x tasks)",
               f"   whole board   G = {rel['all']['g']:.3f}   model SD {_pct(rel['all']['sd_model'])}"
               f"   score SEM {_pct(rel['all']['sem'])}"]
+    if rel["all"]["tasks_for_g90"] is None:
+        lines.append("   the models differ by no more than task noise: this ranking is not reliable,"
+                     " and more tasks like these will not make it so")
     for t in rel["top"]:
         need = "n/a" if t["tasks_for_g90"] is None else f"{t['tasks_for_g90']:,}"
         lines.append(f"   top {t['k']:<3d}       G = {t['g']:.3f}   model SD {_pct(t['sd_model'])}"
@@ -155,13 +165,20 @@ def render(res: dict, name: str = "results") -> str:
                   f" smallest gap detectable at 80% power about {_pct(p['mdd'])}"]
     if "invariance" in res:
         v = res["invariance"]
+        if np.isfinite(v["var_ratio"]):
+            gap_var = (f"per-task gap variance {v['var_ratio']:.2f}x sampling noise within score bands"
+                       f" ({100 * max(v['item_specific_share'], 0):.0f}% task-specific)")
+        else:
+            gap_var = "per-task gap variance not estimable (no score band has 2 models from each group)"
+        if v["heldout_swing"] > 0:
+            swing = f"the two most adversarial subsets differ by {_pct(v['heldout_swing'])}"
+        else:
+            swing = ("subsets picked to favour either group did not favour it on the held-out models"
+                     f" (swing {_pct(v['heldout_swing'])}), so per-task group effects look like noise")
         lines += ["", "2. Invariance (group 1 vs group 0)",
-                  f"   test-level gap {_pct(v['test_gap'])}; per-task gap variance {v['var_ratio']:.2f}x"
-                  f" sampling noise within score bands ({100 * max(v['item_specific_share'], 0):.0f}%"
-                  " task-specific)",
+                  f"   test-level gap {_pct(v['test_gap'])}; {gap_var}",
                   f"   a {v['subset_k']}-task subset chosen on other models moves the gap by up to"
-                  f" {_pct(v['heldout_shift'])}; the two most adversarial subsets differ by"
-                  f" {_pct(v['heldout_swing'])}",
+                  f" {_pct(v['heldout_shift'])}; {swing}",
                   f"   random {v['subset_k']}-task subsets reverse the gap's sign"
                   f" {100 * v['random_subset']['sign_flip_rate']:.1f}% of the time"]
     if "validity" in res:

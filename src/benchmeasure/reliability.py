@@ -45,10 +45,13 @@ class GStudy:
         """Projected G coefficient with a different number of tasks (D study)."""
         return self.var_model / (self.var_model + self.var_residual / n_tasks)
 
-    def tasks_for(self, target: float) -> int:
-        """Tasks needed for the G coefficient to reach `target` at this model spread."""
+    def tasks_for(self, target: float):
+        """Tasks needed for the G coefficient to reach `target` at this model spread.
+
+        None when the models show no spread beyond noise: no number of tasks gets there.
+        """
         if self.var_model <= 0:
-            return np.iinfo(np.int64).max
+            return None
         return int(np.ceil(target / (1 - target) * self.var_residual / self.var_model))
 
 
