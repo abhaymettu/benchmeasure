@@ -1,5 +1,5 @@
 {
-  "source": "/Users/abhay/Desktop/Playground/judge-reliability/output/metrics.json",
+  "source": "github.com/abhaymettu/judge-reliability output/metrics.json",
   "commit": "25a99be5",
   "key": "agreement_matched",
   "setup": "no_ties, target = majority of all annotators; ceiling = one annotator vs majority of the others",
