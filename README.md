@@ -2,7 +2,9 @@
 
 **Three standard psychometric checks, run on AI benchmarks: does the score replicate, does a task mean the same for every model, and how much can the score predict. One command, any results file.**
 
-On SWE-bench Verified the leaderboard as a whole is reliable and its top is not. G, the share of score variance that reflects real differences between systems, is 0.994 across all 173 submissions and about 0.68 for the top 20, where none of the 19 neighbouring pairs can be told apart. Measuring the top k's reliability on the same tasks that picked them understates it badly: 0.19 for the top 10, against 0.69 when the tasks are split.
+Leaderboards rank models as if every gap in the score were real. Psychologists have spent a century working out when a test score can be trusted, and benchmeasure applies those same checks to AI benchmarks: would the ranking come out the same on a fresh set of tasks, does a task mean the same thing for every kind of model, and how much can the score tell you about performance somewhere else.
+
+Run on SWE-bench Verified, the answer splits in two. The leaderboard as a whole is very reliable, and its top is not: among the leading systems, where the comparisons people care about happen, neighbouring entries can't be told apart. In the paper's terms, G, the share of score variance that reflects real differences between systems, is 0.994 across all 173 submissions and about 0.68 for the top 20, where none of the 19 neighbouring pairs can be told apart. Measuring the top k's reliability on the same tasks that picked them understates it badly: 0.19 for the top 10, against 0.69 when the tasks are split.
 
 ![G coefficient of the SWE-bench Verified ranking as the compared set narrows from all 173 submissions to the top 10](figures/fig_reliability_curve.png)
 
