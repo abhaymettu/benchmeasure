@@ -245,7 +245,7 @@ def figures(curve, cov, X):
     ax.set_xticks(ks, [("all " + str(k)) if k == 173 else f"top {k}" for k in ks])
     ax.minorticks_off()
     ax.invert_xaxis()
-    ax.set_ylim(-0.02, 1.02)
+    ax.set_ylim(-0.02, 1.08)
     ax.axhline(0.8, color=grid, lw=1, zorder=0)
     ax.text(ks[0], 0.81, "0.8", color=muted, fontsize=8, va="bottom")
     ax.set_ylabel("G coefficient of the ranking")
@@ -254,8 +254,6 @@ def figures(curve, cov, X):
         ax.annotate(f"{c['g']:.2f}", (c["k"], c["g"]), textcoords="offset points",
                     xytext=(0, 7), ha="center", fontsize=8, color=ink)
     ax.legend(frameon=False, fontsize=8, loc="lower left")
-    ax.set_title("SWE-bench Verified: one benchmark, many reliabilities", loc="left",
-                 fontsize=10, color=ink)
     fig.tight_layout()
     fig.savefig(FIG / "fig_reliability_curve.png")
     plt.close(fig)

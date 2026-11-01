@@ -1,0 +1,218 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\setlist{itemsep=2pt,topsep=4pt}
+\graphicspath{{../figures/}{figures/}}
+
+\title{Benchmarks Are Measurement Instruments:\\Reliability, Invariance and Validity Ceilings\\for LLM and Agent Evaluation}
+\author{Abhay Mettu\\\small\texttt{github.com/abhaymettu/benchmeasure}}
+\date{November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A benchmark score is a measurement, and psychometrics has asked three questions of measurements for a century: does the score replicate (reliability), does an item mean the same thing for every group measured (invariance), and how much of the thing we care about can the score predict (validity). We put LLM and agent evaluations through all three, using only public item-level data, and release an installable tool that answers them for any results file.
+On SWE-bench Verified (173 public submissions by 500 tasks), reliability is not a property of the benchmark but of the comparison. The G coefficient of the ranking is 0.994 across the whole leaderboard and about 0.69 among the leading 20 submissions. Estimating it naively, on the same tasks used to pick the leaders, gives 0.19 for the top 10: a winner's curse that a split-task estimator removes. None of the 19 adjacent pairs in the top 20 differ significantly, and the smallest gap detectable with 80\% power is 4.3 points, against a top-20 spread of 4.8.
+Matching 12 models run with the same scaffold on SWE-bench Verified and SWE-bench Multilingual lets us estimate coverage instead of assuming it: the true-score correlation is 0.98 (coverage 0.96, 95\% interval 0.63 to 1.00). At the frontier, then, the binding constraint on this benchmark's validity for near transfer is reliability, not coverage. That reverses the conclusion our own earlier analysis drew from assumed inputs.
+On invariance, item-level differential functioning between model families is large on the Open LLM Leaderboard (per-item gap variance 6 to 10 times sampling noise) and mild on SWE-bench between open- and closed-weight models (1.29 times), but in both cases it cancels in the full score and returns in small subsets: a 50-task subset chosen on other models moves the open versus closed gap by 9.2 points against a true gap of 1.2.
+For the scorer itself, a GPT-4 judge on MT-Bench agrees with the human majority 85.5\% of the time against a like-for-like human ceiling of 88.2\%, and its order-reversal flip rate (16.1\%) equals its own disagreement with itself on identical reruns (16.2\%).
+\end{abstract}
+
+\section{Introduction}
+
+Every leaderboard comparison carries three silent assumptions. The first is that the score would come out the same if the evaluation were run again on a fresh sample of similar tasks. The second is that a task means the same thing for every model, so that two models with the same ability have the same chance of solving it whatever family they come from. The third is that the score predicts something outside the benchmark. Psychometrics names these reliability, measurement invariance and validity, and has standard tools for each: generalizability theory for reliability \citep{cronbach1972dependability,brennan2001generalizability}, differential item functioning (DIF) tests for invariance \citep{holland1988dif,swaminathan1990logistic,meredith1993measurement}, and the attenuation bound for validity \citep{spearman1904proof}.
+
+This paper treats an evaluation as an instrument with three parts: a set of tasks, a scorer that turns a model's output into a grade, and repeated runs. Each part can fail as a measurement, and we measure each failure on public data. It unifies three open repositories into one programme and one tool:
+\begin{itemize}
+\item \textbf{Reliability and the validity ceiling} on SWE-bench Verified \citep{jimenez2024swebench,chowdhury2024verified}, with variance components estimated from 173 public submissions and coverage estimated from SWE-bench Multilingual \citep{yang2025swesmith} (repository \texttt{agent-validity-ceiling}, extended here).
+\item \textbf{Invariance}: classical DIF on 395 Open LLM Leaderboard models from the tinyBenchmarks release \citep{polo2024tinybenchmarks}, and the same checks on SWE-bench (repository \texttt{benchdif}).
+\item \textbf{The scorer}: an LLM judge calibrated against the human-to-human ceiling on MT-Bench \citep{zheng2023judging} (repository \texttt{judge-reliability}).
+\end{itemize}
+
+\paragraph{Contributions.} (1) A reliability curve for SWE-bench Verified across comparison populations, and the observation that estimating a leading group's reliability on the scores that selected it is biased toward zero, with a split-task fix. (2) A validity ceiling $R^2 \le \rho_X \rho_Y C$ in which every input is estimated from item-level data, including coverage $C$, rather than assumed. (3) Evidence on two very different benchmarks that item-level DIF cancels in full scores but not in subsets, including the published 50-task SWE-bench Verified Mini. (4) \texttt{benchmeasure}, a command-line tool that reports all three properties for any models-by-tasks results file in one command.
+
+\paragraph{What is not new.} Generalizability theory has been applied to agent benchmarks \citep{srinivasan2026ddr,hardy2026agentreliability}, including a 50-task SWE-bench Verified subset with a scaffold facet \citep{hardy2026agentreliability}. Liu et al.\ \citep{liu2026converged} audited 254 public SWE-bench submissions and found that exact McNemar tests separate none of the 29 adjacent top-30 Verified pairs; we reproduce that count on our matrix. Zheng and Yang \citep{zheng2026familydif} report the same qualitative DIF pattern (robust aggregate rankings, fragile near-ties) with a multidimensional IRT approximation. Judge-versus-human agreement is well studied \citep{zheng2023judging,thakur2025judging,bavaresco2024judgebench}, and G-theory for LLM-judged benchmarks has been done at scale \citep{anand2026askwhich}. Multiplicative validity bounds have been argued from surveys \citep{caban2026measurement}, and Li and Ni \citep{li2026measuredorreal} show the Spearman correction can be unstable, which is why we report the ceiling as a bound with intervals. Our contribution is the combination: one measurement model across tasks, runs and scorers, every input estimated from public item data, and the winner's-curse correction.
+
+\section{A measurement model for evaluation scores}
+\label{sec:model}
+
+Let $x_{mi}$ be the score of model (or model and scaffold system) $m$ on task $i$, $0/1$ for pass or fail. With every model attempting every task once, the two-way random effects model is
+\begin{equation}
+x_{mi} = \mu + \alpha_m + \beta_i + (\alpha\beta)_{mi,e},
+\end{equation}
+with variance components $\sigma^2_m$ (true differences between models), $\sigma^2_i$ (task difficulty) and $\sigma^2_{mi,e}$ (model by task interaction confounded with run noise). They are estimated from the ANOVA mean squares. The leaderboard score is the row mean $\bar x_m$, and its reliability for ranking models, the G coefficient, is
+\begin{equation}
+E\rho^2 = \frac{\sigma^2_m}{\sigma^2_m + \sigma^2_{mi,e}/n_i},
+\label{eq:g}
+\end{equation}
+which equals Cronbach's alpha computed over tasks. The standard error of measurement of a score is $\sqrt{\sigma^2_{mi,e}/n_i}$. Two facts make Eq.~\ref{eq:g} useful for evaluation. It depends on $\sigma^2_m$, the spread of the models being compared, so the same 500 tasks can be very reliable for one comparison and unreliable for another. And it projects: replacing $n_i$ gives the reliability with more or fewer tasks (a decision study).
+
+When repeated runs exist, a third facet $r$ separates run noise from stable interaction ($\sigma^2_{mi}$, $\sigma^2_{mr}$, $\sigma^2_{mir,e}$), and the error term becomes $\sigma^2_{mi}/n_i + \sigma^2_{mr}/n_r + \sigma^2_{mir,e}/(n_i n_r)$. A judged benchmark adds a rater facet in the same way. Public SWE-bench submissions have one run each, so we bound the run share with external estimates \citep{bjarnason2026randomness}.
+
+\paragraph{Invariance.} DIF is structure in the interaction term that follows a grouping of models: task $i$ is easier for group $A$ than group $B$ at equal ability. We use logistic regression DIF matched on total score \citep{swaminathan1990logistic} with Benjamini-Hochberg control, and two test-level summaries. The \emph{excess gap variance} compares the variance across tasks of the per-task group gap $\bar x_{Ai} - \bar x_{Bi}$ with its expectation under binomial noise alone; a ratio of 1 means no DIF, and $1 - 1/\text{ratio}$ is the task-specific share. The \emph{held-out subset swing} picks, on half of each group's models, the $k$ tasks that most favour each group, and measures on the other half how far the group gap differs between the two subsets. Because selection and measurement use different models, the swing is not circular.
+
+\paragraph{Validity ceiling.} If $\rho_X$ and $\rho_Y$ are the reliabilities of a benchmark score and a criterion, and $C$ is the squared correlation of their true scores (the share of the criterion's true variance that the benchmark's construct covers), then attenuation gives
+\begin{equation}
+R^2_{XY} \le \rho_X\, \rho_Y\, C,
+\label{eq:ceiling}
+\end{equation}
+and the unit total splits into benchmark noise $1-\rho_X$, criterion noise $\rho_X(1-\rho_Y)$, uncovered variance $\rho_X\rho_Y(1-C)$ and the reachable ceiling. Our earlier analysis applied Eq.~\ref{eq:ceiling} with run-to-run variance from the literature, between-model variance read off the leaderboard by eye, and assumed coverage values of 0.15 to 0.40. Here $\rho_X$ and $\rho_Y$ come from Eq.~\ref{eq:g} and $C$ from the disattenuated correlation between two benchmarks run on the same models.
+
+\section{Data}
+
+\textbf{SWE-bench Verified and Multilingual.} We built item response matrices from the public \texttt{SWE-bench/experiments} repository (commit \texttt{40f164d}, September 2026), which holds a per-task resolved list for each leaderboard submission. Verified gives 173 submissions by 500 tasks, dated October 2023 to September 2026, with resolve rates from 0.4\% to 79.2\%. We dropped two submissions whose per-task files contradict their reported score (10.2\% against a reported 52.8\%, and 0.0\% against 69.6\%). Multilingual gives 14 submissions by 300 tasks. Twelve models were run on both with the same scaffold release (mini-SWE-agent v2), which is the matched set for coverage. A submission is a model and scaffold system; many models appear under several scaffolds.
+
+\textbf{Open LLM Leaderboard.} Per-item correctness for 395 models from the tinyBenchmarks release \citep{polo2024tinybenchmarks}, used in \texttt{benchdif}. Families are parsed from model names: Llama-2 derived ($n=38$) against Mistral derived ($n=41$).
+
+\textbf{MT-Bench human judgments.} 1814 pairwise comparisons with 3355 votes from 65 annotators over 80 questions and 6 models, with the GPT-4 judgments released alongside \citep{zheng2023judging}, used in \texttt{judge-reliability}.
+
+\section{Reliability depends on the comparison}
+
+\subsection{The reliability curve and a winner's curse}
+
+Table~\ref{tab:curve} and Figure~\ref{fig:curve} give the G coefficient of the SWE-bench Verified ranking as the compared set narrows from all 173 submissions to the leading 10. Across the whole board the true spread between submissions is 19.1 points against a score standard error of 1.5, and $E\rho^2 = 0.994$. The rank order of the leaderboard as a whole is real. Among the top 50 (scores 68\% to 79\%) the spread falls to 2.8 points and $E\rho^2 = 0.85$; among the top 20 it is 1.7 points and $E\rho^2 = 0.69$.
+
+The obvious way to compute the top-$k$ figure, picking the leading $k$ and running Eq.~\ref{eq:g} on their 500 scores, gives much lower numbers: 0.50 for the top 20 and 0.19 for the top 10. Those are biased. A model makes the top 10 partly because its noise ran high, so within the selected set noise and true score are negatively related, the observed spread is compressed, and the variance component $\sigma^2_m$ is understated. This is the reliability version of the winner's curse. The fix is to separate selection from measurement: pick the top $k$ on a random half of the tasks, estimate the variance components on the other half, and project to 500 tasks with Eq.~\ref{eq:g}. Over 50 random splits the top-10 estimate is 0.70 (10th to 90th percentile 0.33 to 0.80) rather than 0.19. We report the split estimate as the reliability, and the naive one as a warning about how reliability is usually computed for leaders.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lrrrrrr}
+\toprule
+compared set & scores & model SD & SEM & $E\rho^2$ (split) & $E\rho^2$ (naive) & tasks for 0.9 \\
+\midrule
+all 173 & 0.4 to 79.2 & 19.10 & 1.50 & 0.994 & 0.994 & 28 \\
+top 100 & 53.2 to 79.2 & 7.49 & 1.34 & 0.969 & 0.968 & 145 \\
+top 50 & 68.2 to 79.2 & 2.81 & 1.18 & 0.848 & 0.830 & 789 \\
+top 30 & 71.8 to 79.2 & 2.29 & 1.14 & 0.801 & 0.701 & 1128 \\
+top 20 & 74.4 to 79.2 & 1.65 & 1.12 & 0.688 & 0.502 & 2073 \\
+top 10 & 75.8 to 79.2 & 1.64 & 1.09 & 0.702 & 0.194 & 1973 \\
+\bottomrule
+\end{tabular}
+\caption{Reliability of the SWE-bench Verified ranking by compared set. Scores, SD and SEM in percentage points. Split: top $k$ chosen on half the tasks, components estimated on the other half, median of 50 splits, projected to 500 tasks. Naive: chosen and estimated on the same tasks. Tasks for 0.9: tasks needed for $E\rho^2 = 0.9$ at that spread (decision study).}
+\label{tab:curve}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{fig_reliability_curve.png}
+\caption{G coefficient of the SWE-bench Verified ranking as the compared set narrows. The band is the 10th to 90th percentile over 50 task splits. Choosing and scoring the leaders on the same tasks (orange) understates reliability.}
+\label{fig:curve}
+\end{figure}
+
+Frontier sets defined without looking at scores avoid selection altogether. The eleven models in the February 2026 mini-SWE-agent v2 batch, one scaffold and scores from 56\% to 77\%, have $E\rho^2 = 0.96$ (bootstrap interval 0.74 to 0.98), as do the twelve submissions from 2026 (0.95). The benchmark separates frontier models that differ by several points well. What it cannot do is order a cluster of systems within two or three points of each other, which is exactly the comparison a new state-of-the-art claim makes.
+
+\subsection{Pairs}
+
+The same conclusion holds at the level of individual comparisons. With exact McNemar tests on the shared tasks \citep{mcnemar1947note}, none of the 19 adjacent pairs in the top 20 is separable at $\alpha = 0.05$, and none of the 29 in the top 30, which matches the count of Liu et al.\ \citep{liu2026converged}. Across all 190 top-20 pairs, 15.3\% are separable. The median adjacent gap is 0.2 points with 59 discordant tasks; at that discordance the smallest true gap a paired test detects with 80\% power is 4.3 points, which is about the whole top-20 spread of 4.8.
+
+\subsection{Runs or tasks}
+
+With one run per submission the error term mixes stable model by task interaction with run-to-run noise. Bjarnason et al.\ \citep{bjarnason2026randomness} ran 10 full repetitions of SWE-bench Verified for 12 model, scaffold and temperature configurations and found run-to-run standard deviations of 0.7 to 1.8 points. The single-run SEM for the top 20 here is 1.12 points, so run noise is somewhere between 39\% of the error (at the lowest published SD) and all of it (any SD of 1.12 or more; their configurations are weaker models than the current leaders, so the frontier value is uncertain). If it is the low end, averaging five runs raises top-20 reliability from 0.69 to 0.76; if run noise dominates, five runs give 0.92. Either way, a claim of a one or two point improvement at the top of SWE-bench Verified needs repeated runs and a paired test, and the decision study in Table~\ref{tab:curve} says that adding tasks alone would take about 2000 of them to reach 0.9.
+
+\section{Invariance: differential functioning cancels in full scores and returns in subsets}
+
+\subsection{Open LLM Leaderboard}
+
+On the 79 Llama-2 and Mistral derived models, logistic regression DIF flags 103 to 571 items per benchmark at a false discovery rate of 0.05. The effect is not multiplicity or model dependence: permuting family labels flags 0 to 7 items against 571 on MMLU professional law, permuting at the level of lineages (single-linkage clusters of near-duplicate fine-tunes) flags a median of 2, and the per-item family gap has 6.1 to 9.7 times the variance that binomial noise predicts across five benchmarks. Roughly 85 to 90\% of the per-item family difference is item specific.
+
+It cancels at the test level. Of the 571 flagged professional-law items, 278 favour Mistral and 293 favour Llama-2; dropping all of them moves the family accuracy gap from 0.0216 to 0.0221 and the mean model rank by 3.6 places of 79. Subsets do not inherit this protection. Choosing 100 items on half the models and scoring the family gap on the other half moves the gap by 0.50 to 0.95 across the five benchmarks, against full-benchmark gaps of 0.0005 to 0.19, and random 100-item subsets reverse the sign of the family ordering in 65 of 400 draws on professional law. Individual flags are noisy (about 40\% replicate on held-out models against a base rate of 13 to 22\%), so the claim is about the aggregate, not any single item. Mantel-Haenszel is inapplicable on these matrices: with 79 models and about 1500 score levels the strata are nearly empty, the transpose of the usual psychometric shape.
+
+\subsection{SWE-bench Verified}
+
+Between the 35 open-weight and 138 closed-weight submissions the picture is the same with a smaller effect. The per-task gap has 1.29 times its sampling variance (22\% task specific) and 8 of 500 tasks are flagged by logistic DIF. The full-score gap is $-1.2$ points. A 50-task subset chosen on half of each group's submissions moves that gap by 9.2 points on the other half, about eight times its size, and random 50-task subsets reverse its sign in 12.5\% of draws. The published SWE-bench Verified Mini (50 tasks) happens to preserve the open versus closed gap ($-1.2$ points on both) and the overall ranking (Spearman 0.95 over all 173 submissions), but its ranking of the full benchmark's top 20 correlates only 0.36 with the full one, and its own top-20 reliability is 0.38 (naive estimate). A subset that matches overall difficulty and pass rate can still rank leaders differently.
+
+\paragraph{Repository mix.} Splitting the tasks into Django (231) and the rest (269), the two halves' true-score correlation is 0.99 across all submissions but 0.77 across the top 50, with a bootstrap interval of 0.47 to 1.02 that includes 1. We read this as a possible model by repository interaction among leaders that this sample cannot confirm.
+
+\section{The scorer: an LLM judge is a rater with its own reliability}
+
+When the scorer is an LLM judge, the judge is a facet of the measurement, and its reliability bounds everything downstream. The right comparison is to the reliability of the human labels it replaces. On the MT-Bench human judgments, with ties excluded, GPT-4 judging a pair in one presentation order agrees with the human majority on 85.5\% of 1192 comparisons (95\% interval 83.5 to 87.5). The usual human baseline, one annotator against another, is 82.7\%, which makes the judge look superhuman. But the judge is scored against a majority, a denoised label, so the like-for-like ceiling is one annotator against the majority of the others: 88.2\% (85.0 to 91.1). The judge lands 2.7 points below it. Cohen's kappa \citep{cohen1960kappa} is 0.47 for GPT-4, 0.24 for a rule that always picks the longer answer, and 0.02 for a coin; Krippendorff's alpha \citep{krippendorff2004reliability} over the 65 annotators is 0.485, and adding GPT-4 to the pool moves it to 0.477. On this evidence the judge is about as reliable as one more human annotator.
+
+The judge's biases look different when set next to its own noise. Reversing the presentation order flips the verdict on 16.1\% of 1814 comparisons, but GPT-4 picks the first-shown answer 50.7\% of the time, so there is no directional position preference. On the 1356 judgments that exist twice in the released files with identical prompts, GPT-4 disagrees with itself 16.2\% of the time. The order flip rate is the size of the judge's run-to-run noise, so swap averaging, which recovers 2.9 points of agreement, is best read as variance reduction (the run facet of Section~\ref{sec:model}) rather than bias removal. Verbosity is similar: GPT-4 picks the longer answer 70.5\% of the time and so do the humans (70.6\%); the length-only rule's 70.6\% agreement shows how low the floor is rather than proving bias. Self-preference does survive the comparison with humans: GPT-4 rates its own family's answers 12.7 points above the human win rate (9.5 to 16.0, 578 comparisons) against 3.9 points for a control family.
+
+\section{Validity ceilings with measured inputs}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.55\linewidth]{fig_multilingual.png}
+\caption{Twelve models run with the same scaffold release on SWE-bench Verified (500 Python tasks) and SWE-bench Multilingual (300 tasks in other languages).}
+\label{fig:ml}
+\end{figure}
+
+The twelve matched models (Figure~\ref{fig:ml}) score 56\% to 77\% on Verified and 40\% to 73\% on Multilingual. The observed correlation is 0.93. The G coefficients within this set are 0.953 for Verified and 0.954 for Multilingual, so the true-score correlation is 0.978 and the estimated coverage $C = 0.96$, with a model-bootstrap interval of 0.63 to 1.00. Leaving out any one model gives a true-score correlation between 0.90 (without the weakest, GPT-5 mini) and 1.01. The reachable ceiling for predicting Multilingual from Verified in this population is $0.953 \times 0.954 \times 0.956 = 0.87$.
+
+Table~\ref{tab:ceiling} carries this into the populations of Table~\ref{tab:curve}, holding $\rho_Y$ and $C$ at the matched-set values. Across the whole board, benchmark noise costs 0.6\% of the unit total. Among the top 20 it costs 31\%, and uncovered variance only 3\%. This reverses the conclusion of our earlier analysis, which assumed $C = 0.25$, estimated frontier between-model variance by inspecting the leaderboard (a spread of 5 points, giving $\rho_X = 0.94$), and concluded that coverage is the binding constraint. With every input measured, the binding constraint for frontier comparisons, at least for near transfer to other languages, is the reliability of the score.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+compared set & $\rho_X$ & benchmark noise & criterion noise & uncovered & ceiling $R^2$ \\
+\midrule
+all 173 & 0.994 & 0.006 & 0.046 & 0.042 & 0.907 \\
+top 50 & 0.848 & 0.153 & 0.039 & 0.035 & 0.773 \\
+top 20 & 0.688 & 0.312 & 0.032 & 0.029 & 0.627 \\
+top 10 & 0.702 & 0.299 & 0.032 & 0.029 & 0.640 \\
+\bottomrule
+\end{tabular}
+\caption{Decomposition of the unit total for predicting SWE-bench Multilingual from SWE-bench Verified, with $\rho_Y = 0.954$ and $C = 0.956$ from the matched set and $\rho_X$ from Table~\ref{tab:curve}. The matched set is a different population from the top $k$, so read the rows as what the ceiling would be at each spread.}
+\label{tab:ceiling}
+\end{table}
+
+Two cautions. Multilingual is near transfer: the same task format, harness and kind of repository-level bug fix in other languages. Coverage of deployment usefulness is surely lower, and no public data measures it, so the deployment ceiling remains unknown. And Spearman's correction is unstable when reliabilities are estimated \citep{li2026measuredorreal}; here both reliabilities are above 0.95 and the interval is reported, which is the regime where the correction is best behaved, but the point estimate of $C$ rests on twelve models.
+
+\section{Related work}
+
+\textbf{Noise and error bars.} Miller \citep{miller2024errorbars} gives standard errors, paired differences and power for evals treated as samples from a question population; Madaan et al.\ \citep{madaan2024variance} quantify seed variance; Heineman et al.\ \citep{heineman2025signal} define a signal-to-noise ratio close in spirit to a G coefficient. Bjarnason et al.\ \citep{bjarnason2026randomness} measure run-to-run variance on SWE-bench Verified directly.
+
+\textbf{G-theory for agents and judges.} Srinivasan \citep{srinivasan2026ddr} decomposes variance on TheAgentCompany, tau2-bench and AppWorld and finds the agent main effect under 3\% of total variance; Hardy et al.\ \citep{hardy2026agentreliability} decompose 22 agent benchmarks including SWE-bench Verified Mini and show that more tasks cannot fix a ranking whose error is dominated by scaffold coverage. Anand \citep{anand2026askwhich} applies G-theory to 373,019 judge scores and shows a single judge caps generalizability. Our reliability curve, the winner's-curse correction and the link to a validity ceiling are, as far as our searches found, not in these papers.
+
+\textbf{IRT and invariance.} IRT for leaderboards \citep{lalor2016irt,rodriguez2021evaluation,vania2021comparing} and for efficient subsets \citep{polo2024tinybenchmarks,hofmann2025fluid} assumes item parameters shared across models, which DIF tests; Jiang et al.\ \citep{jiang2026trustirt} show IRT estimators built for human testing can misbehave in the few-models, many-items regime. Zheng and Yang \citep{zheng2026familydif} find family DIF with a spectral MIRT approximation. Rater-facet Rasch models have been applied to LLM raters \citep{sachdeva2026rasch}.
+
+\textbf{Validity.} Bean et al.\ \citep{bean2025measuring} review construct validity across 445 benchmarks; Patel et al.\ \citep{patel2026beyond} argue for ranking agents by predictive validity; Caban \citep{caban2026measurement} proposes a multiplicative bound from a survey of agentic evaluations; Cao et al.\ \citep{cao2025codebench} give a rigor checklist for code benchmarks.
+
+\textbf{Judges.} MT-Bench and Chatbot Arena \citep{zheng2023judging,chiang2024arena}, position bias \citep{wang2023notfair}, self-preference \citep{panickssery2024selfpref,wataoka2024selfpref}, judges against humans \citep{thakur2025judging,bavaresco2024judgebench}, replication instability \citep{kumar2026verdicts} and disagreement among MT-Bench's own human pools \citep{jha2026whosegold}.
+
+\section{What to report}
+
+The three checks are cheap once item-level results exist, and each changes a conclusion in the data above. We suggest that a leaderboard or a paper claiming an improvement report:
+\begin{enumerate}
+\item \textbf{The G coefficient for the comparison being made}, estimated with selection and measurement on different tasks, plus the paired test and the minimum detectable difference for the specific pair.
+\item \textbf{Repeated runs} when the claimed gap is within a few SEMs, so that run noise can be separated from task sampling.
+\item \textbf{The excess gap variance and held-out subset swing} for any grouping that matters (model family, open versus closed weights, language), and the same for any subset used in place of the full benchmark.
+\item \textbf{The scorer's agreement against the like-for-like human ceiling} and its own replication agreement, before reading anything into its biases.
+\item \textbf{A measured coverage} wherever a second benchmark exists for the same models, with its interval, and the ceiling as a bound.
+\end{enumerate}
+For any models-by-tasks file, in wide or long format and with optional groups and criterion files, the command
+\begin{center}\texttt{benchmeasure report results.csv}\end{center}
+prints items 1, 3 and 5, and \texttt{benchmeasure demo} runs it on the SWE-bench matrices used here. Item-level DIF calls \texttt{benchdif}, whose closed-form tests match statsmodels to machine precision.
+
+\section{Limitations}
+
+\begin{itemize}
+\item \textbf{Submissions are not a random sample} of systems, and many share a model. The G coefficient describes this leaderboard's population, which is the population its readers compare.
+\item \textbf{One run per submission} confounds run noise with model by task interaction; we bound the split with published run variance from different, weaker configurations.
+\item \textbf{Coverage rests on twelve matched models} and measures near transfer only. It says nothing about deployment, where no public criterion data exists.
+\item \textbf{DIF is a symptom, not a cause.} It can come from training data, tokenization, prompt format or scaffold; nothing here attributes it, and nothing here shows contamination.
+\item \textbf{The Open LLM Leaderboard results are 2023 to 2024 models}; the judge results are one judge (GPT-4, June 2023) on one dataset.
+\item \textbf{Upstream data quality.} Two SWE-bench submissions had per-task files that contradict their reported scores and were dropped; others may have errors we cannot detect.
+\end{itemize}
+
+\section*{Reproducibility}
+
+{\sloppy Every number in Sections 4, 5.2 and 7 is written by \texttt{experiments/swebench.py} to \texttt{results/swebench.json} with fixed seeds, and a test regenerates the file byte for byte. The matrices are rebuilt from the public repository by \texttt{data/build\_swebench.py}. Section 5.1 numbers come from \texttt{benchdif/validation/} scripts and Section 6 from \texttt{judge-reliability}'s \texttt{make analysis}, which regenerates its README from \texttt{output/metrics.json}. All data are public; no model was called for this paper.\par}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}
