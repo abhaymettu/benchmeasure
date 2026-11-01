@@ -1,0 +1,40 @@
+{
+  "title": "Benchmarks are measurement instruments",
+  "summary": "Reliability, invariance and validity ceilings for AI and agent benchmarks, measured on public item-level data, with a one-command tool that reports all three for any results file.",
+  "repo": "https://github.com/abhaymettu/benchmeasure",
+  "related_repos": [
+    "https://github.com/abhaymettu/agent-validity-ceiling",
+    "https://github.com/abhaymettu/benchdif",
+    "https://github.com/abhaymettu/judge-reliability"
+  ],
+  "paper_pdf": "paper/benchmeasure.pdf",
+  "hero_image": "site/hero.png",
+  "headline_numbers": [
+    {
+      "label": "Reliability of the SWE-bench Verified ranking, all 173 submissions vs top 20",
+      "value": "0.994 vs 0.68",
+      "command": "uv run python experiments/swebench.py  # results/swebench.json: population_curve[k=173].g, population_curve[k=20].g"
+    },
+    {
+      "label": "Top-10 reliability estimated naively on the same tasks vs with a task split",
+      "value": "0.19 vs 0.69",
+      "command": "uv run python experiments/swebench.py  # results/swebench.json: population_curve[k=10].naive_g and .g"
+    },
+    {
+      "label": "Adjacent top-20 SWE-bench Verified pairs separable by exact McNemar",
+      "value": "0 of 19",
+      "command": "uv run python experiments/swebench.py  # results/swebench.json: pairs.top20.adjacent_separable"
+    },
+    {
+      "label": "True-score correlation, SWE-bench Verified vs Multilingual, 12 matched models",
+      "value": "0.98 (coverage 0.96, 95% CI 0.63 to 1.00; 0.80 without the weakest model)",
+      "command": "uv run python experiments/swebench.py  # results/swebench.json: coverage_multilingual.r_true, .coverage, .ci_low, .ci_high, .without_weakest.coverage"
+    },
+    {
+      "label": "Open vs closed gap: full benchmark vs largest move by one held-out 50-task subset",
+      "value": "1.2 pp vs 4.7 pp",
+      "command": "uv run python experiments/swebench.py  # results/swebench.json: invariance.open_vs_closed.heldout_swing_k50.test_gap, .mean_max_shift"
+    }
+  ],
+  "quick_start": "pip install git+https://github.com/abhaymettu/benchmeasure && benchmeasure demo"
+}

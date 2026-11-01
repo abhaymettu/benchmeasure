@@ -52,7 +52,8 @@ def main(argv=None):
         crit.index = [_mini_key(i) for i in crit.index]
         Xm = X.loc[[i for i in X.index if "_mini-v2" in i]]
         Xm.index = [_mini_key(i) for i in Xm.index]
-        res = report(X, group=meta.os_model.astype(bool).to_numpy())
+        base = meta.model.fillna(pd.Series(meta.index, index=meta.index)).to_numpy()
+        res = report(X, group=meta.os_model.astype(bool).to_numpy(), clusters=base)
         res_v = report(Xm, criterion=crit, top=())
         res["validity"] = res_v["validity"]
         print(render(res, "SWE-bench Verified, 173 public submissions (group 1 = open-weight models;"

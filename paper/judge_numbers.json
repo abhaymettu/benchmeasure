@@ -1,0 +1,291 @@
+{
+  "source": "github.com/abhaymettu/judge-reliability output/metrics.json, copied not recomputed. Agreement rows are the ties-excluded setup.",
+  "n_comparisons": {
+    "value": 1814,
+    "path": "metrics.json['dataset']['comparisons']"
+  },
+  "agreement_one_order": {
+    "accuracy": {
+      "value": 0.8548657718120806,
+      "path": "metrics.json['agreement']['no_ties'][2]['accuracy']"
+    },
+    "ci95": {
+      "value": [
+        0.8347384403612617,
+        0.8748964374482188
+      ],
+      "path": "metrics.json['agreement']['no_ties'][2]['ci']"
+    },
+    "n": {
+      "value": 1192,
+      "path": "metrics.json['agreement']['no_ties'][2]['n']"
+    }
+  },
+  "agreement_swap_averaged": {
+    "accuracy": {
+      "value": 0.8840445269016698,
+      "path": "metrics.json['agreement']['no_ties'][3]['accuracy']"
+    },
+    "ci95": {
+      "value": [
+        0.8643588498120947,
+        0.9029304029304029
+      ],
+      "path": "metrics.json['agreement']['no_ties'][3]['ci']"
+    },
+    "n": {
+      "value": 1078,
+      "path": "metrics.json['agreement']['no_ties'][3]['n']"
+    }
+  },
+  "agreement_single_answer": {
+    "accuracy": {
+      "value": 0.9148936170212766,
+      "path": "metrics.json['agreement']['no_ties'][4]['accuracy']"
+    },
+    "ci95": {
+      "value": [
+        0.8943655328195589,
+        0.934228187919463
+      ],
+      "path": "metrics.json['agreement']['no_ties'][4]['ci']"
+    },
+    "n": {
+      "value": 752,
+      "path": "metrics.json['agreement']['no_ties'][4]['n']"
+    }
+  },
+  "swap_averaging_gain": {
+    "delta": {
+      "value": 0.029178755089589226,
+      "path": "metrics.json['mitigations'][0]['delta']"
+    },
+    "ci95": {
+      "value": [
+        0.019345233442533787,
+        0.039824300914982874
+      ],
+      "path": "metrics.json['mitigations'][0]['ci']"
+    }
+  },
+  "human_ceiling_loo_majority": {
+    "accuracy": {
+      "value": 0.8816489361702128,
+      "path": "metrics.json['agreement']['no_ties'][1]['accuracy']"
+    },
+    "ci95": {
+      "value": [
+        0.8496636947043551,
+        0.9107374319113888
+      ],
+      "path": "metrics.json['agreement']['no_ties'][1]['ci']"
+    },
+    "n_scorings": {
+      "value": 752,
+      "path": "metrics.json['agreement']['no_ties'][1]['n']"
+    },
+    "n_comparisons": {
+      "value": 249,
+      "path": "metrics.json['agreement']['no_ties'][1]['n_comparisons']"
+    }
+  },
+  "human_ceiling_pairwise": {
+    "accuracy": {
+      "value": 0.8270967741935484,
+      "path": "metrics.json['agreement']['no_ties'][0]['accuracy']"
+    },
+    "ci95": {
+      "value": [
+        0.8004970884219614,
+        0.8546716110806036
+      ],
+      "path": "metrics.json['agreement']['no_ties'][0]['ci']"
+    },
+    "n_pairs": {
+      "value": 1550,
+      "path": "metrics.json['agreement']['no_ties'][0]['n']"
+    },
+    "n_comparisons": {
+      "value": 699,
+      "path": "metrics.json['agreement']['no_ties'][0]['n_comparisons']"
+    }
+  },
+  "length_baseline": {
+    "accuracy": {
+      "value": 0.7057416267942583,
+      "path": "metrics.json['agreement']['no_ties'][5]['accuracy']"
+    },
+    "ci95": {
+      "value": [
+        0.6801909307875895,
+        0.7309898299390875
+      ],
+      "path": "metrics.json['agreement']['no_ties'][5]['ci']"
+    },
+    "n": {
+      "value": 1254,
+      "path": "metrics.json['agreement']['no_ties'][5]['n']"
+    }
+  },
+  "random_baseline": {
+    "accuracy": {
+      "value": 0.5190174326465927,
+      "path": "metrics.json['agreement']['no_ties'][6]['accuracy']"
+    },
+    "ci95": {
+      "value": [
+        0.49124063469704393,
+        0.5458135860979463
+      ],
+      "path": "metrics.json['agreement']['no_ties'][6]['ci']"
+    },
+    "n": {
+      "value": 1262,
+      "path": "metrics.json['agreement']['no_ties'][6]['n']"
+    }
+  },
+  "cohens_kappa": {
+    "gpt-4 pairwise, one order": {
+      "value": 0.46765870012696653,
+      "path": "metrics.json['kappa']['gpt-4 pairwise, one order']['cohens_kappa']"
+    },
+    "gpt-4 pairwise, swap averaged": {
+      "value": 0.5063390591226371,
+      "path": "metrics.json['kappa']['gpt-4 pairwise, swap averaged']['cohens_kappa']"
+    },
+    "gpt-4 single answer grading": {
+      "value": 0.5147664620721191,
+      "path": "metrics.json['kappa']['gpt-4 single answer grading']['cohens_kappa']"
+    },
+    "length baseline": {
+      "value": 0.2374386161308497,
+      "path": "metrics.json['kappa']['length baseline']['cohens_kappa']"
+    },
+    "random baseline": {
+      "value": 0.022073769630147077,
+      "path": "metrics.json['kappa']['random baseline']['cohens_kappa']"
+    }
+  },
+  "krippendorff_alpha": {
+    "humans_only": {
+      "value": 0.4848956965883727,
+      "path": "metrics.json['krippendorff']['humans_only']"
+    },
+    "with_gpt4_one_order": {
+      "value": 0.4769154710648349,
+      "path": "metrics.json['krippendorff']['gpt-4 pairwise, one order']"
+    },
+    "with_gpt4_swap_averaged": {
+      "value": 0.4879967888327831,
+      "path": "metrics.json['krippendorff']['gpt-4 pairwise, swap averaged']"
+    },
+    "n_raters": {
+      "value": 65,
+      "path": "metrics.json['krippendorff']['n_raters']"
+    },
+    "n_comparisons": {
+      "value": 961,
+      "path": "metrics.json['krippendorff']['n_comparisons']"
+    }
+  },
+  "order_flip_rate": {
+    "rate": {
+      "value": 0.1609702315325248,
+      "path": "metrics.json['position_bias']['gpt-4 pairwise']['flip_rate']"
+    },
+    "ci95": {
+      "value": [
+        0.14388092613009923,
+        0.17750826901874311
+      ],
+      "path": "metrics.json['position_bias']['gpt-4 pairwise']['flip_ci']"
+    },
+    "n": {
+      "value": 1814,
+      "path": "metrics.json['position_bias']['gpt-4 pairwise']['n_comparisons']"
+    }
+  },
+  "first_position_rate": {
+    "rate": {
+      "value": 0.5073969153289266,
+      "path": "metrics.json['position_bias']['gpt-4 pairwise']['position_one_rate']"
+    },
+    "n_decided_presentations": {
+      "value": 3177,
+      "path": "metrics.json['position_bias']['gpt-4 pairwise']['n_decided_presentations']"
+    }
+  },
+  "self_agreement": {
+    "same_verdict_rate": {
+      "value": 0.8377581120943953,
+      "path": "metrics.json['rerun_stability']['same_verdict_rate']"
+    },
+    "ci95": {
+      "value": [
+        0.8178466076696165,
+        0.8576696165191741
+      ],
+      "path": "metrics.json['rerun_stability']['ci']"
+    },
+    "n_duplicated_judgments": {
+      "value": 1356,
+      "path": "metrics.json['rerun_stability']['n_judgments']"
+    }
+  },
+  "verbosity_picks_longer": {
+    "gpt4_one_order": {
+      "value": 0.7053571428571429,
+      "path": "metrics.json['verbosity']['gpt-4 pairwise, one order']['picks_longer_rate']"
+    },
+    "gpt4_one_order_ci95": {
+      "value": [
+        0.6830357142857143,
+        0.7283163265306123
+      ],
+      "path": "metrics.json['verbosity']['gpt-4 pairwise, one order']['picks_longer_ci']"
+    },
+    "human_majority": {
+      "value": 0.7057416267942583,
+      "path": "metrics.json['verbosity']['human majority']['picks_longer_rate']"
+    },
+    "human_majority_ci95": {
+      "value": [
+        0.6802232854864434,
+        0.7304625199362041
+      ],
+      "path": "metrics.json['verbosity']['human majority']['picks_longer_ci']"
+    }
+  },
+  "self_preference": {
+    "gap": {
+      "value": 0.12716262975778547,
+      "path": "metrics.json['self_preference']['gpt-4 judging gpt-4 responses']['difference']"
+    },
+    "ci95": {
+      "value": [
+        0.09515570934256057,
+        0.16003460207612452
+      ],
+      "path": "metrics.json['self_preference']['gpt-4 judging gpt-4 responses']['ci']"
+    },
+    "n": {
+      "value": 578,
+      "path": "metrics.json['self_preference']['gpt-4 judging gpt-4 responses']['n']"
+    },
+    "control_gap_claude_v1": {
+      "value": 0.03872053872053871,
+      "path": "metrics.json['self_preference']['gpt-4 judging claude-v1 responses (control)']['difference']"
+    },
+    "control_ci95": {
+      "value": [
+        0.0075757575757576774,
+        0.06986531986531985
+      ],
+      "path": "metrics.json['self_preference']['gpt-4 judging claude-v1 responses (control)']['ci']"
+    },
+    "control_n": {
+      "value": 594,
+      "path": "metrics.json['self_preference']['gpt-4 judging claude-v1 responses (control)']['n']"
+    }
+  }
+}

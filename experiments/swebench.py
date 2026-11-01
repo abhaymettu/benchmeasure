@@ -11,11 +11,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from benchmeasure.ceiling import ceiling, decompose, estimate_coverage
+from benchmeasure.ceiling import decompose, estimate_coverage
 from benchmeasure.compare import adjacent_pairs, min_detectable_difference, separable_fraction
 from benchmeasure.invariance import (dif, excess_gap_variance, heldout_subset_swing,
                                      random_subset_stability, split_correlation)
 from benchmeasure.reliability import bootstrap_g, gstudy
+from benchmeasure.report import top_k_reliability
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA, OUT, FIG = ROOT / "src" / "benchmeasure" / "data", ROOT / "results", ROOT / "figures"
@@ -38,51 +39,25 @@ def r(x, d=4):
     return None if x is None or (isinstance(x, float) and np.isnan(x)) else round(float(x), d)
 
 
-def honest_split(X, k, reps=50, seed=0):
-    """G-study of the top k when the top k is chosen on half the tasks and scored on the other half.
-
-    Choosing the top k and estimating its spread on the same scores is a
-    winner's curse: the models that look best are partly the ones whose noise
-    ran high, so the selected set's true spread is understated and so is its
-    G coefficient. Splitting the tasks removes that. Medians over `reps` random
-    splits; the G coefficient is projected back to all tasks.
-    """
-    rng = np.random.default_rng(seed)
-    n = X.shape[1]
-    vm, vr, gs = [], [], []
-    for _ in range(reps):
-        perm = rng.permutation(n)
-        a, b = perm[: n // 2], perm[n // 2:]
-        top = X.iloc[:, a].mean(axis=1).sort_values(ascending=False).index[:k]
-        g = gstudy(X.loc[top].iloc[:, b].to_numpy())
-        vm.append(g.var_model)
-        vr.append(g.var_residual)
-        gs.append(g.g_at(n))
-    return float(np.median(vm)), float(np.median(vr)), np.quantile(gs, [0.1, 0.5, 0.9])
-
-
-def tasks_for(var_model, var_residual, target):
-    return int(np.ceil(target / (1 - target) * var_residual / var_model)) if var_model > 0 else None
-
-
 def population_curve(X):
     """Reliability of the ranking as the compared set narrows to the top k.
 
     `naive_g` chooses and measures the top k on the same 500 tasks, which is
     what a reader of the leaderboard implicitly does. `g` is the split-task
-    estimate from `honest_split`, which is the one to believe.
+    estimate from `top_k_reliability`, which is the one to believe.
     """
     score = X.mean(axis=1)
     rows = []
     for k in TOP_K:
         top = score.sort_values(ascending=False).index[:k]
         naive = gstudy(X.loc[top].to_numpy())
-        vm, vr, (g10, g50, g90) = honest_split(X, k)
+        t = top_k_reliability(X, k)
         rows.append({"k": k, "score_min": r(score[top].min()), "score_max": r(score[top].max()),
-                     "naive_g": r(naive.g_coef), "g": r(g50), "g_p10": r(g10), "g_p90": r(g90),
-                     "sd_model_pp": r(100 * np.sqrt(vm), 3),
-                     "sem_pp": r(100 * np.sqrt(vr / X.shape[1]), 3),
-                     "tasks_for_g80": tasks_for(vm, vr, 0.8), "tasks_for_g90": tasks_for(vm, vr, 0.9)})
+                     "naive_g": r(naive.g_coef), "g": r(t["g"]), "g_p10": r(t["g_p10"]),
+                     "g_p90": r(t["g_p90"]), "halves_r_500": r(t["halves_r"]),
+                     "sd_model_pp": r(100 * t["sd_model"], 3),
+                     "sem_pp": r(100 * t["sem"], 3),
+                     "tasks_for_g80": t["tasks_for_g80"], "tasks_for_g90": t["tasks_for_g90"]})
     return rows
 
 
@@ -111,8 +86,8 @@ def runs_projection(X, k):
     a single-run score has run SD s, then s^2 of the residual error variance is
     run noise and averaging n runs divides that part by n.
     """
-    vm, vr, _ = honest_split(X, k)
-    err = vr / X.shape[1]
+    t = top_k_reliability(X, k)
+    vm, err = t["var_model"], t["sem"] ** 2
     out = {}
     for label, sd in (("low", min(RUN_SD_PP)), ("median", float(np.median(RUN_SD_PP))),
                       ("high", max(RUN_SD_PP))):
@@ -157,9 +132,22 @@ def coverage(X, Y):
         ci = estimate_coverage(xa[keep], ya[keep], n_boot=1, seed=0)
         loo.append({"dropped": name, "r_observed": r(ci.r_observed), "r_true": r(ci.r_true),
                     "rho_x": r(ci.rho_x), "rho_y": r(ci.rho_y)})
+    weakest = int(np.argmin(xa.mean(1)))
+    keep = np.arange(len(common)) != weakest
+    c11 = estimate_coverage(xa[keep], ya[keep], n_boot=4000, seed=0)
+
+    def split(ce):
+        d = decompose(ce.rho_x, ce.rho_y, ce.coverage)
+        return {**{k: r(v) for k, v in ce.as_dict().items()},
+                **{k: r(v) for k, v in d.as_dict().items()},
+                "r_observed_squared": r(ce.r_observed ** 2)}
+
     return {"models": common,
             "verified": [r(v) for v in xa.mean(1)], "multilingual": [r(v) for v in ya.mean(1)],
-            **{k: r(v) for k, v in c.as_dict().items()}, "leave_one_out": loo}
+            **{k: r(v) for k, v in c.as_dict().items()},
+            "decomposition": split(c),
+            "without_weakest": {"dropped": common[weakest], **split(c11)},
+            "leave_one_out": loo}
 
 
 def invariance(X, meta, mini):
@@ -181,42 +169,38 @@ def invariance(X, meta, mini):
 
     g = meta.os_model.astype(bool).to_numpy()
     Xa = X.to_numpy()
+    # base model as the cluster, so one model under two scaffolds stays on one side of a split
+    base = meta.model.fillna(pd.Series(meta.index, index=meta.index)).to_numpy()
     flags = dif(Xa, g.astype(int))
     out["open_vs_closed"] = {
-        **{k: r(v) for k, v in excess_gap_variance(Xa, g).items()},
+        "raw": {k: r(v) for k, v in excess_gap_variance(Xa, g).items()},
+        "score_banded": {k: r(v) for k, v in excess_gap_variance(Xa, g, n_strata=5).items()},
         "dif_flagged_q05": int(flags.flag.sum()),
-        "heldout_swing_k50": {k: r(v) for k, v in heldout_subset_swing(Xa, g, 50, seed=0).items()},
+        "n_base_models": int(len(np.unique(base))),
+        "heldout_swing_k50": {k: r(v) for k, v in
+                              heldout_subset_swing(Xa, g, 50, seed=0, clusters=base).items()},
         "random_k50": {k: r(v) for k, v in random_subset_stability(Xa, 50, group=g, seed=0).items()},
     }
     # the published 50-task Mini against the full 500, on every submission and on the top 20
     m = X.columns.isin(mini)
     full, sub = X.mean(axis=1), X.loc[:, m].mean(axis=1)
     top20 = score.index[:20]
+    rng = np.random.default_rng(1)
+    base_sp = []
+    for _ in range(2000):
+        cols = rng.choice(X.shape[1], int(m.sum()), replace=False)
+        base_sp.append(full[top20].corr(X.loc[top20].iloc[:, cols].mean(axis=1), method="spearman"))
+    t20 = top_k_reliability(X, 20)
     out["verified_mini"] = {
         "n_tasks": int(m.sum()),
         "spearman_all": r(full.corr(sub, method="spearman")),
         "spearman_top20": r(full[top20].corr(sub[top20], method="spearman")),
-        "g_all": r(gstudy(X.loc[:, m].to_numpy()).g_coef),
-        "g_top20": r(gstudy(X.loc[top20, m].to_numpy()).g_coef),
+        "random50_spearman_top20": [r(v) for v in np.nanquantile(base_sp, [0.1, 0.5, 0.9])],
+        "projected_g_top20_at_50_tasks": r(t20["var_model"] / (t20["var_model"] + t20["var_residual"] / 50)),
         "open_closed_gap_full": r(full[g].mean() - full[~g].mean()),
         "open_closed_gap_mini": r(sub[g].mean() - sub[~g].mean()),
     }
     return out
-
-
-def ceilings(curve, cov):
-    """The attenuation ceiling at each comparison population, with coverage measured not assumed."""
-    rows = []
-    for row in curve:
-        if row["k"] not in (173, 50, 20, 10):
-            continue
-        rho_x = row["g"]
-        for label, c in (("measured_near_transfer", cov["coverage"]), ("perfect", 1.0)):
-            d = decompose(rho_x, cov["rho_y"], c)
-            rows.append({"k": row["k"], "coverage": label, "rho_x": rho_x, "rho_y": cov["rho_y"],
-                         "ceiling_r2": r(ceiling(rho_x, cov["rho_y"], c)),
-                         **{kk: r(v) for kk, v in d.as_dict().items()}})
-    return rows
 
 
 def figures(curve, cov, X):
@@ -286,7 +270,6 @@ def main():
         "runs_projection_top20": runs_projection(X, 20),
         "pairs": pairs(X),
         "coverage_multilingual": cov,
-        "ceilings": ceilings(curve, cov),
         "invariance": invariance(X, meta, mini),
     }
     OUT.mkdir(exist_ok=True)
@@ -294,7 +277,7 @@ def main():
     figures(curve, cov, X)
     print(json.dumps({"curve": [(c["k"], c["naive_g"], c["g_p10"], c["g"], c["g_p90"]) for c in curve],
                       "fixed": {k: v["g"] for k, v in res["fixed_populations"].items()},
-                      "runs": res["runs_projection_top20"], "ceilings": res["ceilings"],
+                      "runs": res["runs_projection_top20"],
                       "pairs": res["pairs"], "coverage": {k: cov[k] for k in ("r_observed", "r_true", "coverage", "ci_low", "ci_high")}},
                      indent=1))
 

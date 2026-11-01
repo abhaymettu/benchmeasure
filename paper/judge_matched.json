@@ -1,0 +1,142 @@
+{
+  "source": "/Users/abhay/Desktop/Playground/judge-reliability/output/metrics.json",
+  "commit": "25a99be5",
+  "key": "agreement_matched",
+  "setup": "no_ties, target = majority of all annotators; ceiling = one annotator vs majority of the others",
+  "n_comparisons": 249,
+  "ceiling": {
+    "value": 0.8816,
+    "ci": [
+      0.8493,
+      0.9104
+    ],
+    "n": 752,
+    "path": "agreement_matched.ceiling"
+  },
+  "judges": {
+    "full_majority": {
+      "gpt-4 pairwise, one order": {
+        "value": 0.834,
+        "ci": [
+          0.7854,
+          0.8798
+        ],
+        "n": 235,
+        "n_comparisons": 235,
+        "minus_ceiling": -0.0476,
+        "minus_ceiling_ci": [
+          -0.0963,
+          0.0006
+        ],
+        "path": "agreement_matched.full_majority[0]"
+      },
+      "gpt-4 pairwise, swap averaged": {
+        "value": 0.8708,
+        "ci": [
+          0.8235,
+          0.9143
+        ],
+        "n": 209,
+        "n_comparisons": 209,
+        "minus_ceiling": -0.0108,
+        "minus_ceiling_ci": [
+          -0.0567,
+          0.0348
+        ],
+        "path": "agreement_matched.full_majority[1]"
+      },
+      "gpt-4 single answer grading": {
+        "value": 0.9338,
+        "ci": [
+          0.8917,
+          0.9706
+        ],
+        "n": 151,
+        "n_comparisons": 151,
+        "minus_ceiling": 0.0521,
+        "minus_ceiling_ci": [
+          0.0065,
+          0.0967
+        ],
+        "path": "agreement_matched.full_majority[2]"
+      },
+      "length baseline": {
+        "value": 0.7366,
+        "ci": [
+          0.6816,
+          0.7901
+        ],
+        "n": 243,
+        "n_comparisons": 243,
+        "minus_ceiling": -0.145,
+        "minus_ceiling_ci": [
+          -0.2041,
+          -0.0863
+        ],
+        "path": "agreement_matched.full_majority[3]"
+      }
+    },
+    "same_targets": {
+      "gpt-4 pairwise, one order": {
+        "value": 0.8583,
+        "ci": [
+          0.8105,
+          0.9019
+        ],
+        "n": 720,
+        "n_comparisons": 240,
+        "minus_ceiling": -0.0233,
+        "minus_ceiling_ci": [
+          -0.07,
+          0.0209
+        ],
+        "path": "agreement_matched.same_targets[0]"
+      },
+      "gpt-4 pairwise, swap averaged": {
+        "value": 0.8929,
+        "ci": [
+          0.8484,
+          0.9322
+        ],
+        "n": 644,
+        "n_comparisons": 213,
+        "minus_ceiling": 0.0112,
+        "minus_ceiling_ci": [
+          -0.0316,
+          0.0516
+        ],
+        "path": "agreement_matched.same_targets[1]"
+      },
+      "gpt-4 single answer grading": {
+        "value": 0.9517,
+        "ci": [
+          0.9161,
+          0.9811
+        ],
+        "n": 476,
+        "n_comparisons": 152,
+        "minus_ceiling": 0.07,
+        "minus_ceiling_ci": [
+          0.0279,
+          0.1104
+        ],
+        "path": "agreement_matched.same_targets[2]"
+      },
+      "length baseline": {
+        "value": 0.7423,
+        "ci": [
+          0.6837,
+          0.7989
+        ],
+        "n": 749,
+        "n_comparisons": 248,
+        "minus_ceiling": -0.1393,
+        "minus_ceiling_ci": [
+          -0.2008,
+          -0.0791
+        ],
+        "path": "agreement_matched.same_targets[3]"
+      }
+    }
+  }
+}

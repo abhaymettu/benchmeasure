@@ -51,24 +51,53 @@ def example_path(name: str = "swebench_verified.csv.gz") -> Path:
 
 
 def top_k_reliability(X: pd.DataFrame, k: int, reps: int = 50, seed: int = 0) -> dict:
-    """G coefficient of the top k, chosen on half the tasks and measured on the rest."""
+    """G coefficient of the top k, chosen on half the tasks and measured on the rest.
+
+    Choosing the top k and estimating its spread on the same scores is a
+    winner's curse: the models that look best are partly the ones whose noise
+    ran high, so the selected set's spread and its G coefficient are
+    understated. Splitting the tasks removes that, at the cost of a small
+    upward bias: selecting on half the tasks is noisier than selecting on all
+    of them, so the chosen set reaches further down the board and is more
+    spread out than the true top k.
+
+    `g` comes from the median variance components (so it agrees with the
+    reported spread and error), projected back to all tasks; `g_p10`/`g_p90`
+    are quantiles of the per-split G. `halves_r` is a cross-check that uses no
+    variance components: the correlation of the chosen models' scores on the
+    two halves, stepped up to all tasks with Spearman-Brown.
+    """
     rng = np.random.default_rng(seed)
     n = X.shape[1]
-    vm, vr = [], []
+    A = X.to_numpy(float)
+    vm, vr, gs, rs = [], [], [], []
     for _ in range(reps):
         perm = rng.permutation(n)
         a, b = perm[: n // 2], perm[n // 2:]
-        top = X.iloc[:, a].mean(axis=1).sort_values(ascending=False).index[:k]
-        g = gstudy(X.loc[top].iloc[:, b].to_numpy())
+        sa = A[:, a].mean(axis=1)
+        top = np.argsort(-sa, kind="stable")[:k]
+        g = gstudy(A[np.ix_(top, b)])
         vm.append(g.var_model)
         vr.append(g.var_residual)
+        gs.append(g.g_at(n))
+        rs.append(np.corrcoef(sa[top], A[np.ix_(top, b)].mean(axis=1))[0, 1])
     vm, vr = float(np.median(vm)), float(np.median(vr))
-    g = vm / (vm + vr / n) if vm + vr > 0 else float("nan")
-    need = int(np.ceil(9 * vr / vm)) if vm > 0 else None
-    return {"k": k, "g": g, "sd_model": np.sqrt(vm), "sem": np.sqrt(vr / n), "tasks_for_g90": need}
+    g10, g90 = np.quantile(gs, [0.1, 0.9])
+    r_half = float(np.median(rs))
+
+    def need(t):
+        return int(np.ceil(t / (1 - t) * vr / vm)) if vm > 0 else None
+
+    return {"k": k, "g": vm / (vm + vr / n) if vm + vr > 0 else float("nan"),
+            "g_p10": float(g10), "g_p90": float(g90),
+            "halves_r": 2 * r_half / (1 + r_half),
+            "var_model": vm, "var_residual": vr, "sd_model": np.sqrt(vm), "sem": np.sqrt(vr / n),
+            "tasks_for_g80": need(0.8), "tasks_for_g90": need(0.9)}
 
 
-def report(X: pd.DataFrame, group=None, criterion: pd.DataFrame = None, top=(10, 20)) -> dict:
+def report(X: pd.DataFrame, group=None, criterion: pd.DataFrame = None, top=(10, 20),
+           clusters=None) -> dict:
+    """`clusters` labels models that share a base model, so subset checks keep them together."""
     out = {"n_models": X.shape[0], "n_tasks": X.shape[1]}
     A = X.to_numpy(float)
     g = gstudy(A)
@@ -88,9 +117,10 @@ def report(X: pd.DataFrame, group=None, criterion: pd.DataFrame = None, top=(10,
     if group is not None:
         grp = np.asarray(group).astype(bool)
         kk = max(5, min(50, X.shape[1] // 10))
-        out["invariance"] = {**excess_gap_variance(A, grp),
-                             "heldout_swing": heldout_subset_swing(A, grp, kk)["mean_swing"],
-                             "random_subset": random_subset_stability(A, kk, n_draws=400, group=grp),
+        sw = heldout_subset_swing(A, grp, kk, clusters=clusters)
+        out["invariance"] = {**excess_gap_variance(A, grp, n_strata=5),
+                             "heldout_swing": sw["mean_swing"], "heldout_shift": sw["mean_max_shift"],
+                             "random_subset": random_subset_stability(A, kk, n_draws=1000, group=grp),
                              "subset_k": kk}
     if criterion is not None:
         common = X.index.intersection(criterion.index)
@@ -116,7 +146,8 @@ def render(res: dict, name: str = "results") -> str:
         need = "n/a" if t["tasks_for_g90"] is None else f"{t['tasks_for_g90']:,}"
         lines.append(f"   top {t['k']:<3d}       G = {t['g']:.3f}   model SD {_pct(t['sd_model'])}"
                      f"   tasks for G = 0.9: {need}")
-    lines.append("   (top k chosen on half the tasks and scored on the other half, median of 50 splits)")
+    lines.append("   (top k chosen on half the tasks and scored on the other half, 50 splits;"
+                 " slightly optimistic, the naive estimate is far too pessimistic)")
     if "pairs" in res:
         p = res["pairs"]
         lines += ["", f"   leaderboard neighbours in the top {p['k']}: {p['adjacent_separable']} of "
@@ -126,8 +157,10 @@ def render(res: dict, name: str = "results") -> str:
         v = res["invariance"]
         lines += ["", "2. Invariance (group 1 vs group 0)",
                   f"   test-level gap {_pct(v['test_gap'])}; per-task gap variance {v['var_ratio']:.2f}x"
-                  f" sampling noise ({100 * max(v['item_specific_share'], 0):.0f}% task-specific)",
-                  f"   a {v['subset_k']}-task subset chosen on other models moves the gap by"
+                  f" sampling noise within score bands ({100 * max(v['item_specific_share'], 0):.0f}%"
+                  " task-specific)",
+                  f"   a {v['subset_k']}-task subset chosen on other models moves the gap by up to"
+                  f" {_pct(v['heldout_shift'])}; the two most adversarial subsets differ by"
                   f" {_pct(v['heldout_swing'])}",
                   f"   random {v['subset_k']}-task subsets reverse the gap's sign"
                   f" {100 * v['random_subset']['sign_flip_rate']:.1f}% of the time"]

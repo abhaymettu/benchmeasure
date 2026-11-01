@@ -13,56 +13,82 @@ import pandas as pd
 from scipy import stats
 
 
-def _split(X, group):
+def excess_gap_variance(X, group, n_strata: int = 1) -> dict:
+    """Variance of the per-task group gap against what sampling noise alone gives.
+
+    Under no DIF and equal ability distributions, the per-task gap between
+    group means varies only by binomial noise, p_a(1 - p_a)/n_a +
+    p_b(1 - p_b)/n_b. The ratio of observed to that is 1 without DIF, and
+    `item_specific_share` is the part of the observed variance it cannot
+    explain. If the groups differ in ability, gaps on easy and hard tasks
+    differ even without DIF (the probability scale is not linear), which
+    inflates the ratio. `n_strata` > 1 compares the groups within bands of
+    total score instead, which removes most of that; bands where either group
+    has fewer than two models are skipped.
+    """
     X = np.asarray(X, float)
     g = np.asarray(group).astype(bool)
     if g.all() or not g.any():
         raise ValueError("group must contain both 0 and 1")
-    return X[g], X[~g]
-
-
-def excess_gap_variance(X, group) -> dict:
-    """Variance of the per-task group gap against what sampling noise alone gives.
-
-    Under no DIF, the per-task gap between group means varies only by binomial
-    noise, p_a(1 - p_a)/n_a + p_b(1 - p_b)/n_b. The ratio of observed to that
-    is 1 without DIF; `item_specific_share` is the part of the observed
-    variance it cannot explain. Group ability differences shift every task's
-    gap by about the same amount, so they do not inflate the variance.
-    """
-    A, B = _split(X, group)
-    pa, pb = A.mean(0), B.mean(0)
-    gap = pa - pb
-    null = (pa * (1 - pa) / len(A) + pb * (1 - pb) / len(B)).mean()
-    ratio = gap.var(ddof=1) / null if null > 0 else np.nan
-    return {"n_a": len(A), "n_b": len(B), "test_gap": float(A.mean() - B.mean()),
+    total = X.mean(1)
+    edges = np.quantile(total, np.linspace(0, 1, n_strata + 1))
+    band = np.clip(np.searchsorted(edges, total, side="right") - 1, 0, n_strata - 1)
+    obs, null, used = [], [], 0
+    for b in range(n_strata):
+        A, B = X[(band == b) & g], X[(band == b) & ~g]
+        if len(A) < 2 or len(B) < 2:
+            continue
+        pa, pb = A.mean(0), B.mean(0)
+        obs.append((pa - pb).var(ddof=1))
+        null.append((pa * (1 - pa) / len(A) + pb * (1 - pb) / len(B)).mean())
+        used += len(A) + len(B)
+    ratio = np.mean(obs) / np.mean(null) if null and np.mean(null) > 0 else np.nan
+    return {"n_a": int(g.sum()), "n_b": int((~g).sum()), "n_strata": n_strata, "n_used": used,
+            "test_gap": float(X[g].mean() - X[~g].mean()),
             "var_ratio": float(ratio), "item_specific_share": float(1 - 1 / ratio)}
 
 
-def heldout_subset_swing(X, group, k: int, n_splits: int = 20, seed: int = 0) -> dict:
-    """How far a k-task subset moves the group gap on models it was not chosen on.
+def heldout_subset_swing(X, group, k: int, n_splits: int = 20, seed: int = 0, clusters=None) -> dict:
+    """How much the group gap depends on which k tasks are kept, out of sample.
 
     Split each group's models in half. On the first half pick the k tasks that
-    most favour group A and the k that most favour group B. Score both subsets
-    on the second half. The swing is the difference between the two held-out
-    gaps: how much the group comparison depends on which k tasks were kept,
-    with selection and measurement on different models so the swing is not
-    circular.
+    most favour group A and the k that most favour group B. On the second half,
+    score the gap on each subset. `mean_swing` is the difference between those
+    two held-out gaps: the range spanned by the two most adversarial k-task
+    subsets. `mean_max_shift` is the larger of the two one-sided moves away
+    from the held-out full-test gap, which is how far a single subset moves it.
+    `clusters` (one label per model, e.g. the base model) keeps every model of
+    a cluster in the same half, so the same base model under two scaffolds
+    cannot be both selector and judge.
     """
-    A, B = _split(X, group)
+    X = np.asarray(X, float)
+    g = np.asarray(group).astype(bool)
+    if g.all() or not g.any():
+        raise ValueError("group must contain both 0 and 1")
+    labels = np.arange(len(X)) if clusters is None else np.asarray(clusters)
     rng = np.random.default_rng(seed)
-    swings = []
+    swings, shifts = [], []
     for _ in range(n_splits):
-        ia, ib = rng.permutation(len(A)), rng.permutation(len(B))
-        a1, a2 = A[ia[: len(A) // 2]], A[ia[len(A) // 2:]]
-        b1, b2 = B[ib[: len(B) // 2]], B[ib[len(B) // 2:]]
+        first = np.zeros(len(X), bool)
+        for side in (g, ~g):
+            cl = np.unique(labels[side])
+            pick = rng.permutation(cl)[: len(cl) // 2]
+            first |= side & np.isin(labels, pick)
+        a1, b1 = X[first & g], X[first & ~g]
+        a2, b2 = X[~first & g], X[~first & ~g]
+        if min(len(a1), len(b1), len(a2), len(b2)) == 0:
+            continue
         order = np.argsort(a1.mean(0) - b1.mean(0), kind="stable")
         lo, hi = order[:k], order[-k:]
-        swings.append((a2[:, hi].mean() - b2[:, hi].mean())
-                      - (a2[:, lo].mean() - b2[:, lo].mean()))
+        full = a2.mean() - b2.mean()
+        g_hi = a2[:, hi].mean() - b2[:, hi].mean()
+        g_lo = a2[:, lo].mean() - b2[:, lo].mean()
+        swings.append(g_hi - g_lo)
+        shifts.append(max(abs(g_hi - full), abs(g_lo - full)))
     swings = np.asarray(swings)
-    return {"k": k, "test_gap": float(A.mean() - B.mean()),
-            "mean_swing": float(swings.mean()), "min_swing": float(swings.min())}
+    return {"k": k, "test_gap": float(X[g].mean() - X[~g].mean()),
+            "mean_swing": float(swings.mean()), "min_swing": float(swings.min()),
+            "mean_max_shift": float(np.mean(shifts))}
 
 
 def random_subset_stability(X, k: int, n_draws: int = 1000, group=None, seed: int = 0) -> dict:

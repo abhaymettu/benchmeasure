@@ -117,3 +117,15 @@ def test_no_dif_gives_variance_ratio_near_one_and_small_swing():
     assert excess_gap_variance(Xd, group)["var_ratio"] > 3 * e["var_ratio"]
     assert (heldout_subset_swing(Xd, group, 50)["mean_swing"]
             > 3 * heldout_subset_swing(X, group, 50)["mean_swing"])
+
+
+def test_score_bands_remove_ability_inflation():
+    rng = np.random.default_rng(8)
+    theta = rng.normal(0, 1, 400)
+    group = np.arange(400) < 200
+    theta[group] += 1.5  # large impact, no DIF
+    b = rng.normal(0, 1.5, 400)
+    X = (rng.random((400, 400)) < 1 / (1 + np.exp(-(theta[:, None] - b)))).astype(int)
+    raw = excess_gap_variance(X, group)["var_ratio"]
+    banded = excess_gap_variance(X, group, n_strata=5)["var_ratio"]
+    assert raw > 1.5 and 0.7 < banded < 1.3
