@@ -1,6 +1,6 @@
 {
   "title": "Benchmarks are measurement instruments",
-  "summary": "Reliability, invariance and validity ceilings for AI and agent benchmarks, measured on public item-level data, with a one-command tool that reports all three for any results file.",
+  "summary": "Three standard psychometric checks, run on AI benchmarks: does the score replicate, does a task mean the same for every model, and how much can the score predict. Measured on public item-level data, with a one-command tool that runs all three on any results file.",
   "repo": "https://github.com/abhaymettu/benchmeasure",
   "related_repos": [
     "https://github.com/abhaymettu/agent-validity-ceiling",
