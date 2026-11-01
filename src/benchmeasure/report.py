@@ -123,7 +123,7 @@ def report(X: pd.DataFrame, group=None, criterion: pd.DataFrame = None, top=(10,
                              "random_subset": random_subset_stability(A, kk, n_draws=1000, group=grp),
                              "subset_k": kk}
     if criterion is not None:
-        common = X.index.intersection(criterion.index)
+        common = X.index.intersection(criterion.index).sort_values()
         if len(common) < 4:
             raise ValueError(f"criterion shares only {len(common)} models with the benchmark; need 4")
         c = estimate_coverage(X.loc[common].to_numpy(float), criterion.loc[common].to_numpy(float))

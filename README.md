@@ -49,7 +49,7 @@ benchmeasure report: SWE-bench Verified, 173 public submissions (group 1 = open-
 
 3. Validity ceiling against the criterion (12 shared models)
    observed r = 0.932; reliabilities 0.953 and 0.954
-   true-score r = 0.978; coverage C = 0.956 (95% CI 0.62 to 1.00)
+   true-score r = 0.978; coverage C = 0.956 (95% CI 0.63 to 1.00)
    ceiling R^2 <= rho_x * rho_y * C = 0.869
 ```
 
