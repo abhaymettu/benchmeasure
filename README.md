@@ -16,7 +16,7 @@ This repo holds the tool and the paper that ties together three studies:
 | invariance | [benchdif](https://github.com/abhaymettu/benchdif) | item-level DIF between model families is 6 to 10 times sampling noise, cancels in full scores, breaks 100-item subsets |
 | the scorer | [judge-reliability](https://github.com/abhaymettu/judge-reliability) | GPT-4 as judge on MT-Bench: 83.4% agreement with the human majority against a human ceiling of 88.2% on the same items, 87.1% when it judges both answer orders; its order-swap flip rate (16.1%) matches its rerun disagreement (16.2%) |
 
-Paper: [paper/benchmeasure.pdf](paper/benchmeasure.pdf) (12 pages).
+Paper: [paper/benchmeasure.pdf](paper/benchmeasure.pdf) (12 pages). Write-up: [abhaymettu.com/research/benchmeasure](https://www.abhaymettu.com/research/benchmeasure/).
 
 ## Install
 
